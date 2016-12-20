@@ -1,0 +1,99 @@
+ /* font */
+
+/* body part */
+/* ============================================================= */
+
+body {
+    font-family: 'Open Sans';
+    background-color: #F4F4F4;
+    position: relative;
+    font-size: 14px;
+	margin: 0px;
+}
+
+*{
+	-webkit-box-sizing:border-box;
+	-moz-box-sizing:border-box;
+	box-sizing:border-box;
+}
+
+.row{
+	margin-right: 0px;
+	margin-left: 0px;
+}
+
+.main {
+	width: 80%;
+	float: left;
+	position: relative;
+}
+
+.bar{
+	width: 0.1%;
+	height: 100vh;
+	position: relative;
+	float: left;
+	background-color: white;
+}
+
+.sidebar {
+	background-color: black;
+	width: 19.9%;
+	float: left;
+	position: relative;
+	height: 100vh;
+	min-height: 100%;
+	color: white;
+	padding-left: 20px;
+}
+
+.pd-left-1 {
+	padding-left: 10px;
+}
+
+.pd-left-2 {
+	padding-left: 20px;
+}
+
+.pd-left-3 {
+	padding-left: 30px;
+}
+
+.pd-left-4 {
+	padding-left: 40px;
+}
+
+canvas {
+	width: 80.5vw;
+	height: 100vh;
+	display: block;
+}
+
+.slide{
+	float: left;
+	width: 90%;
+}
+
+#wind .ui-slider-range {
+	background: #ffffff;
+}
+
+#sun .ui-slider-range {
+	background: #f11d1d;
+}
+
+#rain .ui-slider-range {
+	background: #00cdff;
+}
+
+#lightning .ui-slider-range {
+	background: #f6db00;
+}
+
+h4{
+	margin-bottom: 12px;
+}
+
+ul{
+	margin-top: 4px;
+}

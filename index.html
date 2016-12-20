@@ -1,0 +1,851 @@
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<link rel="stylesheet" href="./resources/css/jquery-ui.css">
+		<link rel="stylesheet" href="./resources/css/style.css">
+		
+		<script type="text/javaScript" src="./resources/js/jquery.min.js"></script>
+		<script type="text/javaScript" src="./resources/js/three.js"></script>
+		<script type="text/javaScript" src="./resources/js/script.js"></script>
+		<script type="text/javaScript" src="./resources/js/math.min.js"></script> 
+		<script type="text/javaScript" src="./resources/js/jquery-ui.js"></script> 
+
+		<script type="text/javaScript" src="./resources/js/threex.atmospherematerial.js"></script> 
+		<script type="text/javaScript" src="./resources/js/threex.dilategeometry.js"></script> 
+		<script type="text/javaScript" src="./resources/js/threex.geometricglowmesh.js"></script> 
+
+		<title>Realtime rainfall project</title>
+	</head>
+
+	<body>
+
+		<div class="row">
+			<div class="main">
+			
+			</div>
+			<div class="bar">
+			</div>
+			<div class="sidebar">
+				<h2>Realtime project</h2>
+				<hr>
+				
+				<div class="pd-left-1">
+				
+					<h4>Rain quantity</h4>		
+					<div class="pd-left-1">
+						<div id="rain" class="blue slide"></div>
+					</div>
+					<br>
+					<h4>Wind</h4>	
+					<div class="pd-left-1">
+						<div id="wind" class="green slide"></div>
+					</div>
+					<br>
+					<h4>Lightning</h4>	
+					<div class="pd-left-1">
+						<div id="lightning" class="yellow slide"></div>
+					</div>
+					<br>
+					<h4>Evaporate speed</h4>	
+					<div class="pd-left-1">
+						<div id="sun" class="red slide"></div>
+					</div>
+					<br>
+					<h4>View</h4>	
+					<div class="pd-left-1">
+						<input type="radio" name="scene" value="1" checked> mountain 1<br>
+						<input type="radio" name="scene" value="2"> mountain 2<br>
+						<input type="radio" name="scene" value="3"> city<br>
+						<input type="radio" name="scene" value="4"> temples<br>
+					</div>
+					<h4>Features</h4>		
+					<div class="">
+						<ul>
+							<li>Press Q to toggle dome	</li>
+							<li>Press W or S to up/down mirror	</li>
+							<li>Press arrow keys to move camera	</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</body>
+	
+	<script>
+	
+		var rains=[];
+		var manager;
+		
+		// config generate new object
+		var time=0, deltaTime=30, nextTime=0, nextNum=0;
+		
+		var nextLightningTime=0;
+		
+		var parent;
+		var lightnings=[];
+			
+		class Manager {
+			constructor(){
+				////////////////////////////////////////////////
+				// initialize config variable
+				this.lightning = false;
+				this.wind = 0;
+				this.sun = 0;
+				this.rain = 0;
+				this.dome = false;
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// scene
+				this.scene = new THREE.Scene();
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// view 
+				var geometry = new THREE.SphereGeometry( 60, 60, 40 );
+				geometry.scale( - 1, 1, 1 );
+				var material = new THREE.MeshBasicMaterial( {
+					map: new THREE.TextureLoader().load( './resources/img/1/eq.jpg' ),
+				});
+				this.global = new THREE.Mesh( geometry, material );
+				this.scene.add( this.global );
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// camera
+				this.camera = new THREE.PerspectiveCamera( 40, window.innerWidth*80.0/100.0 / window.innerHeight, 1, 100000 );
+				this.camera.position.set( 0,0, 0 );
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// renderer
+				this.renderer = new THREE.WebGLRenderer();
+				this.renderer.gammaInput = true;
+				this.renderer.gammaOutput = true;
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// setting canvas
+				this.container = $('.main');
+				this.container.append( this.renderer.domElement );
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// axes
+				// this.scene.add( new THREE.AxisHelper( 3 ) );
+				////////////////////////////////////////////////
+				
+				
+				////////////////////////////////////////////////
+				// light
+				////////////////////////////////////////////////
+				// add directional light
+				var light = new THREE.DirectionalLight( 0xffffff );
+				light.position.set( 0, 0, 1 );
+				this.scene.add( light );
+				////////////////////////////////////////////////
+				// add ambient light
+				var ambient = new THREE.AmbientLight( 0xffffff );
+				this.scene.add( ambient );
+				////////////////////////////////////////////////
+					
+				
+				////////////////////////////////////////////////
+				// parent
+				parent = new THREE.Object3D();
+				this.scene.add( parent );					
+				////////////////////////////////////////////////
+									
+				
+				////////////////////////////////////////////////					
+				// create texture for raindrop
+				var textureCubeRefraction = new THREE.CubeTextureLoader()
+				.setPath( './resources/img/1/' )
+				.load( [ 'left.png', 'right.png', 'top.png', 'bottom.png', 'back.png', 'front.png' ] );
+				textureCubeRefraction.mapping = THREE.CubeRefractionMapping;
+				this.sphereMaterial = new THREE.MeshLambertMaterial( { color: 0xffffff, envMap: textureCubeRefraction, refractionRatio: 0.75 } );							
+				////////////////////////////////////////////////		
+
+				////////////////////////////////////////////////		
+				// add audio listener
+				var listener = new THREE.AudioListener();
+				this.camera.add(listener);
+				////////////////////////////////////////////////		
+
+				////////////////////////////////////////////////				
+				// create texture for dome
+				////////////////////////////////////////////////	
+				// texture for circle
+				var texturefloor = new THREE.TextureLoader().load('./resources/img/floor.jpg');
+				texturefloor.wrapS = texturefloor.wrapT = THREE.RepeatWrapping;
+				texturefloor.repeat.set( 30, 30 );
+				////////////////////////////////////////////////	
+				// texture for cylinder
+				var texturewall = new THREE.TextureLoader().load('./resources/img/wall.jpg');
+				texturewall.wrapS = texturewall.wrapT = THREE.RepeatWrapping;
+				texturewall.repeat.set( 30, 1 );			
+				////////////////////////////////////////////////	
+				// texture for wall
+				var texturewall2 = new THREE.TextureLoader().load('./resources/img/wall.jpg');
+				texturewall2.wrapS = texturewall2.wrapT = THREE.RepeatWrapping;
+				texturewall2.repeat.set( 0.4, 3 );
+				////////////////////////////////////////////////	
+
+				////////////////////////////////////////////////	
+				// create component for dome
+				var cylinderup_geo = new THREE.CylinderGeometry(Manager.getWidth()/2-0.04,Manager.getWidth()/2-0.04,parseInt(Manager.getHeight()/4),40,40,true);
+				var cylinderup_mat = new THREE.MeshLambertMaterial({map: texturewall, transparent: true, opacity: 0.9});
+				var cylinderup = new THREE.Mesh(cylinderup_geo, cylinderup_mat);
+				cylinderup.position.set(0, 1.5, 0);
+				cylinderup_geo.scale(-1, 1, 1);
+				
+				var cylinderdown_geo = new THREE.CylinderGeometry(Manager.getWidth()/2-0.04,Manager.getWidth()/2-0.04,parseInt(Manager.getHeight()/4),40,40,true);
+				var cylinderdown_mat = new THREE.MeshLambertMaterial({map: texturewall,transparent: true, opacity: 0.9});
+				var cylinderdown = new THREE.Mesh(cylinderdown_geo, cylinderdown_mat);
+				cylinderdown.position.set(0, -1.5, 0);
+				cylinderdown_geo.scale(-1, 1, 1);
+				
+				var wallleft_geo = new THREE.CylinderGeometry(Manager.getWidth()/2-0.04,Manager.getWidth()/2-0.04,parseInt(Manager.getHeight()/3)+0.01,40,40,true,Math.PI/2,0.08);
+				var wallleft_mat = new THREE.MeshLambertMaterial({map: texturewall2,transparent: true, opacity: 0.9});
+				var wallleft = new THREE.Mesh(wallleft_geo, wallleft_mat);
+				wallleft.position.set(0, 0, 0);
+				wallleft_geo.scale(-1, 1, 1);
+
+				var wallright_geo = new THREE.CylinderGeometry(Manager.getWidth()/2-0.04,Manager.getWidth()/2-0.04,parseInt(Manager.getHeight()/3)+0.01,40,40,true,-Math.PI/2,0.08);
+				var wallright_mat = new THREE.MeshLambertMaterial({map: texturewall2,transparent: true, opacity: 0.9});
+				var wallright = new THREE.Mesh(wallright_geo, wallright_mat);
+				wallright.position.set(0, 0, 0);
+				wallright_geo.scale(-1, 1, 1);
+
+				
+				var circleup_geo = new THREE.CircleGeometry(Manager.getWidth()/2-0.03,32);
+				var circleup_mat = new THREE.MeshLambertMaterial({map: texturefloor, transparent: true, opacity: 0.9});
+				var circleup = new THREE.Mesh(circleup_geo, circleup_mat);
+				circleup.position.set(0, 2, 0);
+				circleup.rotation.x = Math.PI/2;
+
+				var circledown_geo = new THREE.CircleGeometry(Manager.getWidth()/2-0.03,32);
+				var circledown_mat = new THREE.MeshLambertMaterial({map: texturefloor,transparent: true, opacity: 0.9});
+				var circledown = new THREE.Mesh(circledown_geo, circledown_mat);
+				circledown.position.set(0, -2, 0);
+				circledown_geo.scale(-1,1,1);
+				circledown.rotation.x = Math.PI/2;
+				
+				var mirror_geo = new THREE.CylinderGeometry(Manager.getWidth()/2-0.02,Manager.getWidth()/2-0.02,parseInt(Manager.getHeight()/3),40,40,true);
+				var mirror_mat = new THREE.MeshLambertMaterial({color: 0x595951, transparent: true, opacity: 0.2, depthWrite: false});
+				mirror_geo.scale(-1,1,1);
+				this.mirror = new THREE.Mesh(mirror_geo, mirror_mat);
+				this.mirror.position.set(0, 0, 0);
+				////////////////////////////////////////////////	
+				
+				////////////////////////////////////////////////	
+				// add component to dome
+				this.objectdome = new THREE.Object3D();
+				this.objectdome.add(circledown);
+				this.objectdome.add(cylinderdown);
+				this.objectdome.add(circleup);
+				this.objectdome.add(wallleft);
+				this.objectdome.add(cylinderup);
+				this.objectdome.add(wallright);
+				this.objectdome.add(this.mirror);
+
+				this.scene.add(this.objectdome);
+				////////////////////////////////////////////////	
+
+
+				////////////////////////////////////////////////	
+				// add sound
+				var audioLoader = new THREE.AudioLoader();
+				var rainSound = new THREE.Audio(listener);
+				audioLoader.load('./resources/audio/rain.mp3',function( buffer ){
+					rainSound.setBuffer(buffer);
+					rainSound.setLoop(true);
+					rainSound.play();
+				});
+				
+				var rainSound2 = new THREE.Audio(listener);
+				audioLoader.load('./resources/audio/rain2.mp3',function( buffer ){
+					rainSound2.setBuffer(buffer);
+					rainSound2.setLoop(true);
+					rainSound2.play();
+				});
+				
+			
+				var windSound = new THREE.Audio(listener);
+				audioLoader.load('./resources/audio/wind.ogg', function(buffer){
+					windSound.setBuffer(buffer);
+					windSound.setLoop(true);
+					windSound.setVolume(0.1);
+					windSound.play();
+				});
+				
+				var windSound2 = new THREE.Audio(listener);
+				audioLoader.load('./resources/audio/wind2.mp3', function(buffer){
+					windSound2.setBuffer(buffer);
+					windSound2.setLoop(true);
+					windSound2.setVolume(0.1);
+					windSound2.play();
+				});
+				var Thunder = new THREE.Audio(listener);
+				audioLoader.load('./resources/audio/thunder.mp3', function(buffer){
+					Thunder.setBuffer(buffer);
+				});
+				this.rainSound = rainSound;
+				this.rainSound2 = rainSound2;
+				this.windSound = windSound;
+				this.windSound2 = windSound2;
+				this.Thunder = Thunder;
+				////////////////////////////////////////////////	
+
+			}
+			
+			static getWidth(){
+				return 11;
+			}
+			
+			static getHeight(){
+				return 7;
+			}
+			
+			static random(start,end){
+				return Math.random()*(end-start)+start;
+			}
+			
+			static randomWidth(){
+				return (Math.random()-0.5)*Manager.getWidth();
+			}
+			
+			static randomHeight(){
+				return (Math.random()-0.5)*Manager.getHeight();
+			}
+	
+		}
+		
+		function max(x,y){
+			return x>y?x:y;
+		}
+		
+		function intersect(first, second){
+			
+			var firstx = first.object.position.x, firsty = first.object.position.y, firstz = first.object.position.z;
+			var secondx = second.object.position.x, secondy = second.object.position.y, secondz = second.object.position.z;
+			
+			var dx = (firstx - secondx);
+			var dy = (firsty - secondy);
+			var dz = (firstz - secondz);
+			
+			var dist = dx*dx + dy*dy + dz*dz;
+			var radius2 = (first.radius + second.radius)*(first.radius + second.radius);
+			
+			if(dist<=radius2){
+				return true;
+			}
+			
+			return false;	
+		}
+		
+		function removeObject(parenter, object){
+			
+			var temp = object;
+			parenter.remove(temp);
+			
+			for(var i=object.children.length-1;i>=0;i--){
+				removeObject(object,object.children[i]);
+				delete(object.children[i]);
+			}
+		
+			if('geometry' in temp)
+				temp.geometry.dispose();
+			if('material' in temp)
+				temp.material.dispose();
+			delete(temp);
+		}
+
+		var number=0;
+		
+		class Rain{
+			constructor(object, radius, speed = 0){
+				this.object = object;
+				this.radius = radius;
+				this.speed = speed;
+				this.active = true;
+				this.name = ++number;
+			}
+			
+			volume(){
+				return 4.0*Math.PI*this.radius*this.radius*this.radius/3.0;
+			}
+			
+			static getRadiusFromVolume(volume){
+				return Math.cbrt(volume*3.0/4.0/Math.PI);
+			}
+		}	
+		
+		class Rain_drop extends Rain {
+			constructor(object, radius, speed){
+				super(object,radius,speed);
+				this.break = 0;
+				this.breaker = 0;
+			}
+			
+			update(){
+
+				if(manager.dome && (this.breaker==0 && (this.break>0 || this.object.position.y<=(manager.mirror.position.y-1)))){
+					this.object.position.y = manager.mirror.position.y-1;
+					this.break=1;
+					if(Manager.random(0,100)>=99.8){
+						this.breaker=1;
+						this.speed = 0.2;
+					}
+				}
+				else{
+					if(!manager.dome){
+						this.speed+=0.05;
+						this.breaker = 1;
+					}
+				
+					this.object.position.y -= Manager.random(max(this.speed*(manager.rain+10)/30-0.01,0),this.speed*(manager.rain+10)/30);
+					
+					if(Manager.random(0,40+(manager.rain/20))>=40 && this.speed!=0){
+						this.object.position.y -= Manager.random(0.003,Math.abs(manager.wind/1500));
+						this.speed += Manager.random(0.005,0.015);
+					}	
+				}
+
+				for(var i=rains.length-1;i>=0;i--){
+					if(rains[i].name == this.name || rains[i] instanceof Rain_back) continue;
+					if(this.object.position.y < rains[i].object.position.y) continue;
+					if(intersect(this,rains[i])){
+						rains[i].active = false;
+						this.speed += rains[i].radius;
+						var new_r = Rain.getRadiusFromVolume(this.volume()+rains[i].volume());
+						this.object.scale.x = new_r/this.radius - (1 - this.object.scale.x);
+						this.object.scale.y = new_r/this.radius + (this.object.scale.y-1);
+						this.radius = new_r;
+						if(rains[i].break !=0){
+							this.breaker = 1;
+							this.speed = 0.2;
+						}
+					}
+				}
+				
+				if(this.object.scale.y < 1.8){
+					var sca = Manager.random(0.999,1.0);
+					this.object.scale.x *= sca;
+					this.object.scale.y *= 1.0/sca;
+				}
+				
+				this.object.scale.x -= Manager.random(0,manager.sun/10000);
+				this.object.scale.y -= Manager.random(0,manager.sun/10000);
+				if(this.object.scale.x <=0 || this.object.scale.y <= 0)
+					return true;
+				
+				if(this.object.position.y < -(Manager.getHeight()/2))
+					return true;
+
+				return false;
+			}
+			
+			
+		}
+		
+		class Rain_back extends Rain {
+			constructor(object, radius){
+				super(object, radius);
+			}
+			
+			update(){
+				return true;
+			}
+		}
+		
+		function createlightning(start,end,zvalue,depth,maxdepth){
+			var diff = math.subtract(end,start);
+			
+			var length = diff.abs();
+			
+			var normal = math.complex( diff.im/length, -diff.re/length);
+
+			var positions = [];
+			
+			positions.push(0);
+			for(var i=0;i<=length*5;i++)
+				positions.push(Manager.random(0,1));
+			positions.sort();
+			
+			
+			var prevpoint = start;
+			var prevdis = 0;
+			
+			
+			var material = new THREE.MeshLambertMaterial({
+				color: 0xffffff,
+				transparent: true
+			});
+				
+			var points = [];
+			var delta = 0.2/depth;
+			
+			var z = Manager.random(-7,-3);
+			points.push(new THREE.Vector3(start.re,start.im,zvalue));
+			
+			for(var i=1;i<positions.length;i++){
+				var pos = positions[i];
+				var scale = (pos-positions[i-1]);
+				var backtoendpoint = pos>0.95 ? 20*(1-pos) : -1;
+				
+				var dis = Manager.random(-delta, delta);
+				dis -= (dis - prevdis) *(1-scale);
+				dis *= backtoendpoint;
+				
+				//shift x-axis and y-axis by diff and normal
+				var point = math.add(math.add(start , math.multiply(pos, diff)) , math.multiply(dis, normal));
+				points.push(new THREE.Vector3(point.re,point.im,zvalue));
+
+				prevpoint = point;
+				prevdis = dis;
+				
+			}
+			points.push(new THREE.Vector3(end.re,end.im,zvalue));
+			
+			var size = 0.02/(depth*depth*depth*depth);
+			
+			var geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), positions.length, size, 30, false);
+
+			var lightning = new THREE.Mesh(geometry, material);
+			lightnings.push(lightning);
+			parent.add(lightning);
+
+	
+			var glowMesh	= new THREEx.GeometricGlowMesh(lightning);
+			lightning.add(glowMesh.object3d);
+			
+			lightnings.push(glowMesh.insideMesh);
+			lightnings.push(glowMesh.outsideMesh);
+			
+			var insideUniforms	= glowMesh.insideMesh.material.uniforms;
+			insideUniforms.glowColor.value.set('#f4f4f4');
+			insideUniforms['coeficient'].value = 0;
+			insideUniforms['power'].value = 0.3;			
+			var outsideUniforms	= glowMesh.outsideMesh.material.uniforms;
+			outsideUniforms.glowColor.value.set('#74afff');
+			outsideUniforms['coeficient'].value = 0;
+			outsideUniforms['power'].value = 30 - size*1000;	
+
+			
+			if(depth<=maxdepth){
+			
+				var point = lightning.geometry.vertices.length;
+				var branch = parseInt(Manager.random(4,8));
+				
+				var branchpoints=[];
+				while(branch--)
+					branchpoints.push(Manager.random(0,max(point-2,0)));
+				branchpoints.sort();
+				
+				for(var i=0;i<branchpoints.length;i++){
+					var mark = parseInt(branchpoints[i]);
+					var new_start = math.complex(lightning.geometry.vertices[mark].x,lightning.geometry.vertices[mark].y);
+					var delta = math.subtract(end,new_start);
+					delta = math.complex(delta.re/(2.0+depth),delta.im/(2.0+depth));
+					var seta = Manager.random(-50,50);
+					if(i%2==0)
+						seta=seta*-1 - 10;
+					else seta=seta+10;
+					seta = seta* Math.PI / 180;
+					if(delta.re==0 && delta.im ==0)
+						continue;
+					var new_end = math.add(new_start,math.complex(math.cos(seta)*delta.re -math.sin(seta)*delta.im,math.sin(seta)*delta.re + math.cos(seta)*delta.im));
+					createlightning(new_start,new_end,zvalue,depth+1,Manager.random(1,maxdepth));
+				}
+			}
+		}
+		
+		function createlightnings(depth){
+		
+			var x = Manager.randomWidth()*2;
+			var start = math.complex(x,4);
+			var end = math.complex(x+Manager.random(-2,2),-1);
+
+			var globalR = Manager.getWidth();
+			var zvalue = Math.sqrt(globalR*globalR - start.re*start.re);
+			zvalue *= Manager.random(-1,1)>=0 ? 1 : -1; 
+			
+			createlightning(start,end,zvalue,1,Manager.random(1,2.9));
+			
+		}
+		
+		$(function () {
+						
+			function resize(){
+				manager.renderer.setSize( window.innerWidth * 80.0 / 100, window.innerHeight );
+				manager.renderer.setPixelRatio( window.devicePixelRatio );
+				manager.camera.aspect = window.innerWidth * 80.0 / 100.0 / window.innerHeight;
+				manager.camera.updateProjectionMatrix();
+			}
+			
+			function init() {
+				manager = new Manager();
+				resize();
+				window.addEventListener('resize', resize, false);	
+			}
+			
+			function updateparameter() {
+				manager.wind = $( "#wind" ).slider( "value" ),
+				manager.sun = $( "#sun" ).slider( "value" );		
+				manager.rain = $( "#rain" ).slider( "value" );		
+				if($( "#lightning" ).slider( "value" ) == 0)
+					manager.lightning = 0;
+				else
+					manager.lightning = 3000.0/$( "#lightning" ).slider( "value" );				
+			}
+		 
+			function addrain(nums,sizerain,offset) {
+				if(manager.dome) {
+					while(nums--){
+						var radius = Manager.random(0,sizerain)+offset;
+						
+						var geometry;
+						var type = parseInt(Manager.random(0,2.99));
+						var detail = parseInt(Manager.random(1,2.99));
+						if(type==0)
+							geometry = new THREE.OctahedronGeometry( radius , detail);		
+						else if(type==1)
+							geometry = new THREE.IcosahedronGeometry( radius, detail);		
+						else
+							geometry = new THREE.SphereGeometry( radius, detail+1);		
+						
+						particle = new THREE.Mesh( geometry, manager.sphereMaterial );
+
+						particle.position.x = Manager.randomWidth();
+						particle.position.y = Manager.random(manager.mirror.position.y-1,Manager.getHeight()/2);
+						
+						var globalR = Manager.getWidth()/2;
+						particle.position.z = Math.sqrt(globalR*globalR - particle.position.x*particle.position.x);
+						particle.position.z *= Manager.random(-1,1)>=0 ? 1 : -1;
+						particle.scale.y *= 1.4;
+						
+						if(radius>=0.015)
+							rains.push(new Rain_drop(particle,radius,Manager.random(0.005,0.015)));
+						else
+							rains.push(new Rain_drop(particle,radius,0));					
+						parent.add(particle);
+					}
+				}
+			}
+			
+			function addrainbg(nums) {
+				while(nums--){
+					
+					var start = math.complex(Manager.randomWidth(),Manager.randomHeight());
+					var length = Manager.random(0.4,0.8);
+					var seta = manager.wind * Math.PI / 360.0;
+					var end = math.add(start,math.multiply(length,math.complex(math.sin(seta),-1*math.cos(seta))));
+				
+					var globalR = Manager.getWidth()/2;
+					var startz = Math.sqrt(globalR*globalR - start.re*start.re);
+					var mul = Manager.random(-1,1)>=0 ? 1 : -1;
+					startz *= mul;
+					var endz = Math.sqrt(globalR*globalR - end.re*end.re);
+					endz *= mul;
+				
+					var geometry = new THREE.Geometry();
+					geometry.vertices.push(new THREE.Vector3(start.re, start.im, startz));
+					geometry.vertices.push(new THREE.Vector3(end.re, end.im, endz));
+									
+					particle = new THREE.Line( geometry, manager.sphereMaterial );
+
+					rains.push(new Rain_back(particle));
+					parent.add(particle);
+				}
+			}
+
+			
+			function updateSound(){
+				manager.rainSound.setVolume(manager.rain/20);
+				manager.rainSound2.setVolume(manager.rain/20);
+				manager.windSound.setVolume(Math.abs(manager.wind/127));
+				manager.windSound2.setVolume(Math.abs(manager.wind/127));
+				if(manager.lightning==0)
+					manager.Thunder.setVolume(0);
+				else
+					manager.Thunder.setVolume(30/manager.lightning);
+				
+			}
+			function updatelightning(lightning){
+
+				if(lightning.material.opacity >= 0 )
+					lightning.material.opacity -= 0.04;
+				else return true;
+			
+				return false;
+			}
+
+			function animate() {
+				updateSound();
+			
+				var countsmall = 0; 
+				for(var i=rains.length-1;i>=0;i--){
+					if(rains[i].speed == 0 )
+						countsmall++;
+					if(!rains[i].active || rains[i].update()){
+						removeObject(parent,rains[i].object);
+						delete(rains[i]);
+						rains.splice(i,1);
+					}
+				}
+				
+				for(var i=lightnings.length-1;i>=0;i--){
+					if(updatelightning(lightnings[i])){						
+						removeObject(parent,lightnings[i]);
+						delete(lightnings[i]);
+						lightnings.splice(i,1);
+					}
+				}
+
+				time++;
+
+				if(nextNum>0 && countsmall<=1000){
+					var nums = parseInt(Manager.random(0,2));
+					if(nums>0){
+						addrain(nums,0.015,0.001);
+						nextNum-=nums;
+					}
+				}
+
+				if(manager.dome){
+					manager.objectdome.visible = true;
+				}
+				else {
+					manager.objectdome.visible = false;
+				}
+				
+				addrainbg(Math.ceil(manager.rain));
+			   
+				if(time>nextTime){
+					nextTime+=deltaTime;
+					nextNum+=parseInt(manager.rain);
+					addrain(manager.rain,0.005,0.015);
+				}
+
+				
+				if(time>nextLightningTime && manager.lightning>0){
+					nextLightningTime = time;
+					nextLightningTime+=manager.lightning;
+					manager.Thunder.play();
+					manager.Thunder.setVolume(1);
+					createlightnings();
+				}
+
+				
+				
+				
+				
+				// render using requestAnimationFrame
+				requestAnimationFrame( animate );
+				manager.renderer.render( manager.scene, manager.camera );
+			}
+			
+			
+			init();
+			animate();
+			
+			$( "#wind" ).slider({
+				orientation: "horizontal",
+				range: "min",
+				min: -127,
+				max: 127,
+				value: 0,
+				slide: updateparameter,
+				change: updateparameter
+			});
+			
+			$( "#rain" ).slider({
+				orientation: "horizontal",
+				range: "min",
+				min: 0,
+				max: 20,
+				value: 0,
+				slide: updateparameter,
+				change: updateparameter
+			});
+			
+			$( "#lightning" ).slider({
+				orientation: "horizontal",
+				range: "min",
+				min: 0,
+				max: 100,
+				value: 0,
+				slide: updateparameter,
+				change: updateparameter
+			});
+			
+			$( "#sun" ).slider({
+				orientation: "horizontal",
+				range: "min",
+				min: 0,
+				max: 100,
+				value: 0,
+				slide: updateparameter,
+				change: updateparameter
+			});
+			
+			
+			
+			 $('input[type=radio][name=scene]').change(function() {
+				var str = (this).value;
+				manager.global.material.dispose();
+				var material = new THREE.MeshBasicMaterial( {
+					map: new THREE.TextureLoader().load( './resources/img/'+ str +'/eq.jpg' ),
+				});
+				
+				manager.sphereMaterial.envMap.dispose();
+				
+				var textureCubeRefraction = new THREE.CubeTextureLoader()
+				.setPath( './resources/img/' + str + '/' )
+				.load( [ 'left.png', 'right.png', 'top.png', 'bottom.png', 'back.png', 'front.png' ] );
+				textureCubeRefraction.mapping = THREE.CubeRefractionMapping;
+				
+				manager.sphereMaterial.envMap = textureCubeRefraction;
+				
+				manager.global.material = material;
+			});
+			
+			document.addEventListener('keydown', function(event) {
+				if(event.keyCode == 37) 
+					manager.camera.rotateY(0.02);
+				if(event.keyCode == 39) 
+					manager.camera.rotateY(-0.02);
+				if(event.keyCode == 38) {
+					manager.camera.translateZ(-0.1);
+					if(Math.abs(manager.camera.position.x) >= Manager.getWidth()/3 || (Math.abs(manager.camera.position.z) >= Manager.getWidth()/3))
+						manager.camera.translateZ(0.1);					
+				}
+				if(event.keyCode == 40){ 
+					manager.camera.translateZ(0.1);
+					if(Math.abs(manager.camera.position.x) >= Manager.getWidth()/3 || (Math.abs(manager.camera.position.z) >= Manager.getWidth()/3))
+						manager.camera.translateZ(-0.1);					
+				}
+				if(event.keyCode == 87 && manager.mirror.position.y<=2){ 
+					manager.mirror.position.y+=0.03;
+				}
+				if(event.keyCode == 83 && manager.mirror.position.y>=0.03){ 
+					manager.mirror.position.y-=0.03;
+				}
+				if(event.keyCode == 81){
+					manager.dome = !manager.dome;
+				}
+				 
+				
+			});
+		});
+	</script>
+</html>
