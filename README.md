@@ -6,7 +6,7 @@ Term project in Realtime Graphic Simulation course
 * **Kitipong Sirirueangsakul**
 * **Apiruj Choomwattana**
 
-Worked in group of 3
+Worked in group of 3.
 
 ## Library used
  - Three.js
