@@ -3,8 +3,8 @@ Term project in Realtime Graphic Simulation course
 
 ## Contributors
 * **Pathanin Lokbow**
-* **Kitipong Sirirueangsakul**
-* **Apiruj Choomwattana**
+* **Kitipong Sirirueangsakul** (https://github.com/RogerKSI)
+* **Apiruj Choomwattana** (https://github.com/apiruj)
 
 Worked in group of 3.
 
