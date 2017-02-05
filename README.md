@@ -2,7 +2,7 @@
 Term project in Realtime Graphic Simulation course
 
 ## Contributors
-* **Pathanin Lokbow**
+* **Pathanin Lokbow** (https://github.com/pathanin)
 * **Kitipong Sirirueangsakul** (https://github.com/RogerKSI)
 * **Apiruj Choomwattana** (https://github.com/apiruj)
 
